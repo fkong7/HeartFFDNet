@@ -1,4 +1,4 @@
-# HeartDeepFFD
+# HeartFFDNet
 
 ## Dependencies:
 
