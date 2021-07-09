@@ -1,5 +1,12 @@
 # HeartFFDNet
 
+This repository contains the source code for our paper:
+
+Kong, F., Shadden, S.C., Whole Heart Mesh Generation For Image-Based Computational Simulations By Learning Free-From Deformations, MICCAI 2021
+
+https://user-images.githubusercontent.com/31931939/125139339-35292480-e0c5-11eb-8d46-bf31c2c5dbcf.mov
+
+
 ## Dependencies:
 
   - Tensorflow                     1.14
