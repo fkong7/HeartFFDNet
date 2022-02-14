@@ -182,7 +182,7 @@ def load_geometry_from_file(fn, target_node_num):
     try:
         region_ids = np.unique(vtk_to_numpy(template.GetCellData().GetArray('Scalars_'))).astype(int)
     except:
-        region_ids = np.unique(vtk_to_numpy(template.GetCellData().GetArray('RegionId'))).astype(int)
+        region_ids = np.unique(vtk_to_numpy(template.GetPointData().GetArray('RegionId'))).astype(int)
     print("Unique ids of template mesh: ", region_ids)
     struct_list = []
     node_list = [0]
@@ -192,7 +192,7 @@ def load_geometry_from_file(fn, target_node_num):
     for i in region_ids:
         poly_i = thresholdPolyData(template, 'Scalars_', (i, i),'cell')
         if poly_i.GetNumberOfPoints() == 0:
-            poly_i = thresholdPolyData(template, 'RegionId', (i, i),'cell')
+            poly_i = thresholdPolyData(template, 'RegionId', (i, i),'point')
         num_pts = poly_i.GetNumberOfPoints()
         rate = max(0., 1. - float(target_node_num)/num_pts)
         print("Target reduction rate of structure: ", i, target_node_num, num_pts, rate)
@@ -221,22 +221,6 @@ def process_template(template_fn, target_node_num=None, template_im_fn=None, ref
         template, node_list, face_list  = load_geometry_from_file(template_fn, target_node_num)
     if template_im_fn is None:
         coords = vtk_to_numpy(template.GetPoints().GetData())
-        if ref_template_fn is not None:
-            ref = load_vtk_mesh(ref_template_fn)
-            ref_coords = vtk_to_numpy(ref.GetPoints().GetData())
-            ref_mean = np.mean(ref_coords, axis=0)
-            coords -= ref_mean
-            ref_coords -= ref_mean
-            ref_nrm = np.max(np.linalg.norm(ref_coords, axis=1))
-            coords /= ref_nrm * 1.8
-            ref_coords /= ref_nrm * 1.8
-            ref_coords += np.array([0.5, 0.5, 0.5])
-        else:
-            mean = np.mean(coords, axis=0)
-            coords -= mean
-            coords /= np.max(np.linalg.norm(coords, axis=1)) * 1.8
-        coords += np.array([0.5, 0.5, 0.5])
-        template.GetPoints().SetData(numpy_to_vtk(coords))
     else:
         SIZE = (128, 128, 128)
         imgVol_o = sitk.ReadImage(template_im_fn)
@@ -246,8 +230,8 @@ def process_template(template_fn, target_node_num=None, template_im_fn=None, ref
         transform = build_transform_matrix(imgVol)
         template  = transform_polydata(template, img_center2-img_center, transform, SIZE)
         coords = vtk_to_numpy(template.GetPoints().GetData())
-    #write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), datetime.now().strftime("%m_%d_%Y_%H_%M_%S")+'_template_'+os.path.basename(template_fn)))
-    write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), '../examples/template_with_veins_normalized.vtp'))
+    write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), datetime.now().strftime("%m_%d_%Y_%H_%M_%S")+'_template_'+os.path.basename(template_fn)))
+    #write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), '../examples/template_with_veins_normalized.vtp'))
     if ref_template_fn is not None:
         bounds = (np.min(ref_coords, axis=0), np.max(ref_coords, axis=0))
     else:
