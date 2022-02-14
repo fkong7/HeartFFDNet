@@ -292,6 +292,7 @@ def construct_bspline_matrix(ctrl_pts, tmplt_coords, u, v, w, order=3):
         if p == 0:
             b = np.where((x >= t[i]-1e-5) & (x <= t[i+1]+1e-5), 1., 0.)
             #b = np.where((x >= t[i]) & (x <= t[i+1]), 1., 0.)
+            #b = np.where((x >= t[i]-1e-4) & (x <= t[i+1]+1e-4), 1., 0.)
             return b
         seg_i = t[i+p] - t[i]
         seg_ip1 = (t[i+p+1] - t[i+1])
@@ -317,8 +318,8 @@ def construct_bspline_matrix(ctrl_pts, tmplt_coords, u, v, w, order=3):
                 b_list = basis_u * basis_v * basis_w
                 B.append(b_list)
     B = np.stack(B, axis=1)
-    if np.any(np.sum(B, axis=-1)==0):
-        raise RuntimeError("NaN in the B spline matrix!.")
+    #if np.any(np.sum(B, axis=-1)==0):
+    #    raise RuntimeError("NaN in the B spline matrix!.")
     #np.set_printoptions(threshold=np.inf)
     #print(B)
     B /= np.sum(B, axis=-1, keepdims=True)

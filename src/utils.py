@@ -47,7 +47,7 @@ def buildImageDataset(data_folder_out, modality, seed, mode='_train', ext='*.tfr
     filenames = [None]*len(modality)
     nums = np.zeros(len(modality))
     for i, m in enumerate(modality):
-      filenames[i], _ = getTrainNLabelNames(data_folder_out[i], m, ext=ext, fn=mode)
+      filenames[i], _ = getTrainNLabelNames(data_folder_out, m, ext=ext, fn=mode)
       nums[i] = len(filenames[i])
       x_train_filenames+=filenames[i]
       #shuffle
@@ -111,6 +111,7 @@ def get_model_memory_usage(batch_size, model):
 def getTrainNLabelNames(data_folder, m, ext='*.nii.gz',fn='_train', seg_fn='_masks'):
   x_train_filenames = []
   y_train_filenames = []
+  print("DEBUG: ", os.path.join(data_folder,m+fn,ext))
   for subject_dir in sorted(glob.glob(os.path.join(data_folder,m+fn,ext))):
       x_train_filenames.append(os.path.realpath(subject_dir))
   try:

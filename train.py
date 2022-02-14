@@ -44,13 +44,17 @@ import SimpleITK as sitk
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--im_train',  help='Name of the folder containing the image data')
-parser.add_argument('--im_val',  help='Name of the folder containing the image data')
+parser.add_argument('--im_trains', nargs='+', help='Name of the folder containing the image data')
+parser.add_argument('--im_vals', nargs='+', help='Name of the folder containing the image data')
 parser.add_argument('--file_pattern', default='*.tfrecords', help='Pattern of the .tfrecords files')
 parser.add_argument('--pre_train_im', default='', help="Filename of the pretrained unet")
 parser.add_argument('--pre_train', default='', help="Filename of the pretrained model")
+parser.add_argument('--attr_trains', nargs='+', help='Attribute name of the folders containing tf records')
+parser.add_argument('--attr_vals', nargs='+', help='Attribute name of the folders containing tf records')
+parser.add_argument('--train_data_weights', type=float, nargs='+', help='Weights to apply for the samples in different datasets')
+parser.add_argument('--val_data_weights', type=float, nargs='+', help='Weights to apply for the samples in different datasets')
 parser.add_argument('--pre_train_num_epoch', type=int, default=300, help="Number of epochs for training with geometric mean loss")
 parser.add_argument('--mesh',  help='Name of the .dat file containing mesh info')
-parser.add_argument('--attr', help='Attribute name of the folders containing tf records')
 parser.add_argument('--output',  help='Name of the output folder')
 parser.add_argument('--modality', nargs='+', help='Name of the modality, mr, ct, split by space')
 parser.add_argument('--num_epoch', type=int, help='Maximum number of epochs to run')
@@ -80,11 +84,8 @@ epochs = args.num_epoch
 batch_size = args.batch_size
 img_shape = args.size
 img_shape = (img_shape[0], img_shape[1], img_shape[2], 1)
-attr = args.attr
 lr = args.lr
 
-data_folder_out = [args.im_train]*2
-data_val_folder_out = [args.im_val]*2
 save_loss_path = args.output
 save_model_path = os.path.join(args.output, "weights_gcn.hdf5")
 
@@ -170,7 +171,7 @@ cp_cd = SaveModelOnCD(metric_key, save_model_path, patience=50)
 #cp = tf.keras.callbacks.ModelCheckpoint(filepath=save_model_path, save_weights_only=True, period=100)
 #cp = tf.keras.callbacks.ModelCheckpoint(filepath=save_model_path, monitor='val_loss', save_best_only=True, verbose=1)
 #cp_time_lap = tf.keras.callbacks.ModelCheckpoint(filepath=save_model_path2, verbose=1, save_weights_only=True,period=2)
-lr_schedule = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.8, patience=10, min_lr=0.000005)
+lr_schedule = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, min_lr=0.000005)
 weight_schedule = ReduceLossWeight(grid_weight, patience=5, factor=0.95)
 #erly_stp = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=50)
 call_backs = [cp_cd,lr_schedule, weight_schedule]
@@ -179,6 +180,7 @@ call_backs = [cp_cd,lr_schedule, weight_schedule]
 try:
     #unet_gcn = models.load_model(save_model_path, custom_objects=custom_objects)
     if args.pre_train != '':
+        print("Loading pre-trained model: ", args.pre_train)
         unet_gcn.load_weights(args.pre_train)
     else:
         unet_gcn.load_weights(save_model_path)
@@ -189,19 +191,6 @@ except Exception as e:
 """## Set up train and validation datasets
 Note that we apply image augmentation to our training dataset but not our validation dataset.
 """
-x_train_filenames = buildImageDataset(data_folder_out, modality, seed, mode='_train', ext=args.file_pattern)
-x_val_filenames = buildImageDataset(data_val_folder_out, modality, seed, mode='_val', ext=args.file_pattern)
-print("Number of training examples after sampling: {}".format(len(x_train_filenames)))
-print("Number of validation examples after sampling: {}".format(len(x_val_filenames)))
-
-if len(x_val_filenames) ==0:
-    x_train_filenames, x_val_filenames = train_test_split(x_train_filenames, test_size=0.2, random_state=seed)
-    print("Number of training examples after sampling: {}".format(len(x_train_filenames)))
-    print("Number of validation examples after sampling: {}".format(len(x_val_filenames)))
-
-num_train_examples = len(x_train_filenames)
-num_val_examples = len(x_val_filenames)
-
 tr_cfg = {
     'changeIntensity': {"scale": [0.9, 1.1],"shift": [-0.1, 0.1]}, 
 }
@@ -209,28 +198,40 @@ tr_preprocessing_fn = functools.partial(_augment, **tr_cfg)
 
 val_cfg = {}
 
+if_seg = True if args.num_seg>0 else False
 val_preprocessing_fn = functools.partial(_augment, **val_cfg)
 
-if_seg = True if args.num_seg>0 else False
-train_ds = get_baseline_dataset(x_train_filenames, preproc_fn=tr_preprocessing_fn,
-                                batch_size=batch_size, mesh_ids=args.mesh_ids, shuffle_buffer=args.shuffle_buffer_size, if_seg=if_seg, num_block=args.num_block,if_warp_im=args.if_warp_im)
-val_ds = get_baseline_dataset(x_val_filenames, preproc_fn=val_preprocessing_fn,
-                              batch_size=batch_size, mesh_ids=args.mesh_ids, shuffle_buffer=args.shuffle_buffer_size, if_seg=if_seg, num_block=args.num_block, if_warp_im=args.if_warp_im)
+train_ds_list, val_ds_list = [], []
+train_ds_num, val_ds_num = [], []
+for data_folder_out, attr in zip(args.im_trains, args.attr_trains):
+    x_train_filenames_i = buildImageDataset(data_folder_out, args.modality, args.seed, mode='_train'+attr, ext=args.file_pattern)
+    #x_train_filenames_i = [buildImageDataset(data_folder_out, args.modality, args.seed, mode='_val'+attr, ext=args.file_pattern)[0]]
+    #print("train data debug: ", x_train_filenames_i)
+    train_ds_num.append(len(x_train_filenames_i))
+    train_ds_i = get_baseline_dataset(x_train_filenames_i, preproc_fn=tr_preprocessing_fn, mesh_ids=args.mesh_ids, \
+            shuffle_buffer=args.shuffle_buffer_size, if_seg=if_seg, num_block=args.num_block,if_warp_im=args.if_warp_im)
+    train_ds_list.append(train_ds_i)
+for data_val_folder_out, attr in zip(args.im_vals, args.attr_vals):
+    x_val_filenames_i = buildImageDataset(data_val_folder_out, args.modality, args.seed, mode='_val'+attr, ext=args.file_pattern)
+    #x_val_filenames_i = [buildImageDataset(data_val_folder_out, args.modality, args.seed, mode='_val'+attr, ext=args.file_pattern)[0]]
+    #print("val data debug: ", x_val_filenames_i)
+    val_ds_num.append(len(x_val_filenames_i))
+    val_ds_i = get_baseline_dataset(x_val_filenames_i, preproc_fn=val_preprocessing_fn, mesh_ids=args.mesh_ids, \
+            shuffle_buffer=args.shuffle_buffer_size, if_seg=if_seg, num_block=args.num_block, if_warp_im=args.if_warp_im)
+    val_ds_list.append(val_ds_i)
+train_data_weights = [w/np.sum(args.train_data_weights) for w in args.train_data_weights]
+val_data_weights = [w/np.sum(args.val_data_weights) for w in args.val_data_weights]
+print("Sampling probability for train and val datasets: ", train_data_weights, val_data_weights)
+train_ds = tf.data.experimental.sample_from_datasets(train_ds_list, weights=train_data_weights)
+train_ds = train_ds.batch(args.batch_size)
+val_ds = tf.data.experimental.sample_from_datasets(val_ds_list, weights=val_data_weights)
+val_ds = val_ds.batch(args.batch_size)
 
-# debug
-debug_fn = sorted(x_train_filenames)[0]
-print("Debug image fn: ", debug_fn)
-debug_ds = get_baseline_dataset([debug_fn], preproc_fn=val_preprocessing_fn, batch_size=batch_size, mesh_ids=args.mesh_ids, if_seg=if_seg, num_block=args.num_block)
-data_aug_iter = debug_ds.make_one_shot_iterator()
-next_element = data_aug_iter.get_next()
-with tf.Session() as sess: 
-    batch_of_imgs, label = sess.run(next_element)
-    debug_im = np.squeeze(batch_of_imgs[0])
-    debug_mesh = np.squeeze(label[-1])
-    sitk.WriteImage(sitk.GetImageFromArray(debug_im.transpose(2,1,0)), os.path.join(args.output, 'debug_new.nii.gz'))
-    write_numpy_points(debug_mesh, os.path.join(args.output, 'debug_new_meshes.vtp'))
-
-
+num_train_examples = train_ds_num[np.argmax(train_data_weights)]/np.max(train_data_weights)
+#num_train_examples = 300 # set the same for comparison
+num_train_examples = 1500
+num_val_examples =  val_ds_num[np.argmax(val_data_weights)]/np.max(val_data_weights) 
+print("Number of train, val samples after reweighting: ", num_train_examples, num_val_examples)
 """ Print Layer Name """
 #layer_id = list()
 #for i, layer in enumerate(unet_gcn.layers):
