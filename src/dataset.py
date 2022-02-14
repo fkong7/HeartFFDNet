@@ -80,18 +80,22 @@ def _parse_function_all(mode):
 
 def get_baseline_dataset(filenames, preproc_fn=functools.partial(_augment),
                          threads=1, 
-                         batch_size=1,
+                         batch_size=0,
                          mesh_ids = [2], # default is LV blood pool 2
                          shuffle=True,
                          if_seg=True,
                          num_block=1,
-                         shuffle_buffer=128,
+                         shuffle_buffer=10000,
                          if_warp_im=False):           
   num_x = len(filenames)
   # Create a dataset from the filenames and labels
   files = tf.data.Dataset.from_tensor_slices(filenames)
-  dataset = files.apply(tf.contrib.data.parallel_interleave(
-    tf.data.TFRecordDataset, cycle_length=threads))
+  if shuffle:
+    files = files.shuffle(shuffle_buffer)
+  #dataset = files.apply(tf.contrib.data.parallel_interleave(
+  #  tf.data.TFRecordDataset, cycle_length=threads))
+  dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x),
+                        cycle_length=threads, num_parallel_calls=tf.data.experimental.AUTOTUNE)
   # Map our preprocessing function to every element in our dataset, taking
   # advantage of multithreading
   dataset_img = dataset.map(_parse_function_all('img'))
@@ -125,10 +129,8 @@ def get_baseline_dataset(filenames, preproc_fn=functools.partial(_augment),
   #dataset_output = tf.data.Dataset.zip((dataset_seg, tuple(mesh_list), tuple(mesh_list), tuple(mesh_list)))
   dataset = tf.data.Dataset.zip((dataset_input, dataset_output))
   dataset = dataset.map(preproc_fn)
-  if shuffle:
-    dataset = dataset.shuffle(shuffle_buffer)
-  
   # It's necessary to repeat our data for all epochs 
-  dataset = dataset.repeat().batch(batch_size, drop_remainder=True)
-  #dataset = dataset.prefetch(buffer_size=batch_size)
+  dataset = dataset.repeat()
+  if batch_size >0:
+    dataset = dataset.batch(batch_size, drop_remainder=True)
   return dataset

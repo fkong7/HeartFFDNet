@@ -391,7 +391,7 @@ if __name__ == '__main__':
         try:
             ctrl_pts = pkl['grid_coords_stored'][i] #Later on, store grid coordinates
         except Exception as e:
-            min_bound, max_bound = np.min(pkl['grid_coords'], axis=0), np.max(pkl['grid_coords'], axis=0)
+            min_bound, max_bound = np.min(pkl['grid_coords'], axis=0)-0.001, np.max(pkl['grid_coords'], axis=0)+0.001
             num_pts = mat[-1][-1]
             num_pts = int(round(num_pts**(1/3)))
             grid = make_grid(num_pts, (min_bound, max_bound))
