@@ -230,7 +230,7 @@ def process_template(template_fn, target_node_num=None, template_im_fn=None, ref
         transform = build_transform_matrix(imgVol)
         template  = transform_polydata(template, img_center2-img_center, transform, SIZE)
         coords = vtk_to_numpy(template.GetPoints().GetData())
-    write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), datetime.now().strftime("%m_%d_%Y_%H_%M_%S")+'_template_'+os.path.basename(template_fn)))
+    #write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), datetime.now().strftime("%m_%d_%Y_%H_%M_%S")+'_template_'+os.path.basename(template_fn)))
     #write_vtk_polydata(template, os.path.join(os.path.dirname(__file__), '../examples/template_with_veins_normalized.vtp'))
     if ref_template_fn is not None:
         bounds = (np.min(ref_coords, axis=0), np.max(ref_coords, axis=0))
@@ -791,7 +791,7 @@ def make_dat_file_ffd_downsampled_grid(num_pts, num_level,  template_processed, 
             imgVol.SetSpacing(1./(np.array(IMAGE_SIZE)-1))
             sitk.WriteImage(imgVol, 'debug.nii.gz')
     if write:
-        pickle.dump(info, open(os.path.join(os.path.dirname(__file__), '../examples/example_dat_of_template_with_veins_test.dat'),"wb"), protocol=2)
+        pickle.dump(info, open(os.path.join(os.path.dirname(__file__), '../examples/mmwhs_test/dat_of_template_with_no_veins.dat'),"wb"), protocol=2)
         #pickle.dump(info, open(os.path.join(os.path.dirname(__file__),datetime.now().strftime("%m_%d_%Y_%H_%M_%S")+"_pixel2mesh_aux_down_level{}{}_fit{}_{}_order{}.dat".format(num_level, option, num_pts, mode, order)),"wb"), protocol=2)
 
     # debug
