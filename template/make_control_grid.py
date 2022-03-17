@@ -290,9 +290,9 @@ def construct_bspline_volume(ctrl_pts, tmplt_coords, bounds, order=3):
 def construct_bspline_matrix(ctrl_pts, tmplt_coords, u, v, w, order=3):
     def _compute_basis(x, t, i, p):
         if p == 0:
-            b = np.where((x >= t[i]-1e-5) & (x <= t[i+1]+1e-5), 1., 0.)
+            #b = np.where((x >= t[i]-1e-5) & (x <= t[i+1]+1e-5), 1., 0.)
             #b = np.where((x >= t[i]) & (x <= t[i+1]), 1., 0.)
-            #b = np.where((x >= t[i]-1e-4) & (x <= t[i+1]+1e-4), 1., 0.)
+            b = np.where((x >= t[i]-1e-4) & (x <= t[i+1]+1e-4), 1., 0.)
             return b
         seg_i = t[i+p] - t[i]
         seg_ip1 = (t[i+p+1] - t[i+1])
@@ -318,8 +318,8 @@ def construct_bspline_matrix(ctrl_pts, tmplt_coords, u, v, w, order=3):
                 b_list = basis_u * basis_v * basis_w
                 B.append(b_list)
     B = np.stack(B, axis=1)
-    #if np.any(np.sum(B, axis=-1)==0):
-    #    raise RuntimeError("NaN in the B spline matrix!.")
+    if np.any(np.sum(B, axis=-1)==0):
+        raise RuntimeError("NaN in the B spline matrix!.")
     #np.set_printoptions(threshold=np.inf)
     #print(B)
     B /= np.sum(B, axis=-1, keepdims=True)
@@ -478,7 +478,7 @@ def transition_matrix_for_multi_level_grid_gaussion(grid1, grid2):
     B = B/np.max(B, axis=-1, keepdims=True)
     rej = B * np.random.rand(*B.shape)
     sort_rej = np.argsort(rej, axis=-1)
-    thres = np.expand_dims(rej[range(B.shape[0]), sort_rej[:, -32]], axis=-1)
+    thres = np.expand_dims(rej[range(B.shape[0]), sort_rej[:, -16]], axis=-1)
     B[np.less(rej, thres)] = 0.
     B = B/np.sum(B, axis=-1, keepdims=True)
     print("CHECK min, max: ", np.min(B[B>0.]), np.mean(B[B>0.]), np.max(B))

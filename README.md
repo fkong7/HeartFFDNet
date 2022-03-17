@@ -52,7 +52,7 @@ python predict.py \
     --if_swap_mesh \
     --compare_seg
 ```
-To reproduce the accuracy results of Multi-Res+WHS in Table 1, please use the following command. This will load the template without pulmonary veins or venae cavae and the model trained using the same dataset as used by Kong et. al. [8] that contains no pulmonary veins or venae cavae for a fair comparison with the previously reported methods. The MMWHS dataset can be obtained here: https://zmiclab.github.io/projects/mmwhs/
+To reproduce the accuracy results of Multi-Res+WHS in Table 1, please use the following command. This will load the template without pulmonary veins or venae cavae and the model trained using the same dataset as used by Kong et. al. [8] that contains no pulmonary veins or venae cavae for a fair comparison with the previously reported methods. The MMWHS dataset can be obtained here: https://zmiclab.github.io/zxh/0/mmwhs/
 
 ```
 python predict.py \
